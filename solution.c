@@ -21,58 +21,94 @@ void create_processes(int pattern, int current, int max) {
             wait(NULL);
         }
         printf("Process 0 (%d) exiting\n", getpid());
-    } else if (pattern == 2) {
-        printf("Process %d (%d) beginning\n", current, getpid());
-        sleep(2);
-        if (current < max) {
-            pid_t pid = fork();
-            if (pid == 0) {
-                printf("Process %d (%d) created Process %d (%d)\n", current,
-                       getppid(), current + 1, getpid());
-                create_processes(pattern, current + 1, max);
-                exit(0);
-            } else {
-                wait(NULL);
-                printf("Process %d (%d) exiting\n", current, getpid());
-            }
-        } else {
-            printf("Process %d (%d) exiting\n", current, getpid());
-        }
-    } else if (pattern == 3) {
-        printf("Process %d (%d) beginning\n", current, getpid());
-        sleep(2);
-        if (current < max) {
-            pid_t pid1 = fork();
-            if (pid1 == 0) {
-                printf("Process %d (%d) created Process %d (%d)\n", current,
-                       getppid(), current + 1, getpid());
-                create_processes(pattern, current + 1, max);
-                exit(0);
-            }
-            if (current + 1 < max) {
-                pid_t pid2 = fork();
-                if (pid2 == 0) {
-                    printf("Process %d (%d) created Process %d (%d)\n", current,
-                           getppid(), current + 2, getpid());
-                    create_processes(pattern, current + 2, max);
-                    exit(0);
-                }
-            }
-            wait(NULL);
-            wait(NULL);
-        }
-        printf("Process %d (%d) exiting\n", current, getpid());
-    } else {
-        printf("Invalid pattern number.\n");
     }
 }
 
+void create_processes_pattern_two(int current, int max) {
+    if (current > max) {
+        return;
+    }
+    printf("Process %d (%d) beginning\n", current, (int)getpid());
+    sleep(1);
+    if (current < max) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            printf("Process %d (%d) created Process %d (%d)\n", current,
+                   (int)getppid(), current + 1, (int)getpid());
+            create_processes_pattern_two(current + 1, max);
+            exit(EXIT_SUCCESS);
+        } else {
+            wait(NULL);
+        }
+        printf("Process %d (%d) exiting\n", current, (int)getpid());
+    }
+}
+
+
+void create_processes_pattern_three(int current, int max)
+{
+    if (current > max) {
+        return;
+    }
+
+    printf("Process %d (%d) beginning\n", current, (int)getpid());
+
+    pid_t pid_left = -1, pid_right = -1;
+    if (2*current <= max) {
+        pid_left = fork();
+        if (pid_left < 0) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+        if (pid_left == 0) {
+            printf("Process %d (%d) created Process %d (%d)\n",
+                   current, (int)getppid(), 2*current, (int)getpid());
+            create_processes_pattern_three(2*current, max);
+            exit(0);
+        }
+    }
+    if (2*current + 1 <= max) {
+        pid_right = fork();
+        if (pid_right < 0) {
+            perror("fork");
+            exit(EXIT_FAILURE);
+        }
+        if (pid_right == 0) {
+            printf("Process %d (%d) created Process %d (%d)\n",
+                   current, (int)getppid(), 2*current+1, (int)getpid());
+            create_processes_pattern_three(2*current+1, max);
+            exit(0);
+        }
+    }
+
+    if (pid_left > 0) {
+        waitpid(pid_left, NULL, 0);
+    }
+    if (pid_right > 0) {
+        waitpid(pid_right, NULL, 0);
+    }
+
+    printf("Process %d (%d) exiting\n", current, (int)getpid());
+}
+ 
+
 int main(int argc, char *argv[]) {
+    srand(getpid());  // Seed random number generator
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <num> <pattern>\n", argv[0]);
+        return 1;
+    }
     int num = atoi(argv[1]);
     int pattern = atoi(argv[2]);
-    srand(getpid());  // Seed random number generator
-
-    create_processes(pattern, 1, num);
-
+    if (pattern == 1) {
+        create_processes(1, 1, num);
+    } else if (pattern == 2) {
+        create_processes_pattern_two(1, num);
+    } else if (pattern == 3) {
+        create_processes_pattern_three(1, num);
+    } else {
+        fprintf(stderr,
+                "Invalid pattern number. Valid pattern numbers: 1,2,3\n");
+    }
     return 0;
 }
